@@ -1,0 +1,65 @@
+- name: Download node-exporter
+  ansible.builtin.get_url:
+    url: "{{ node_exporter_url }}"
+    dest: /tmp
+
+- name: Unarchive 
+  ansible.builtin.unarchive: 
+    remote_src: yes
+    src: /tmp/node_exporter-{{ version }}.linux-amd64.tar.gz
+    dest: /tmp
+
+- name: Copy to /usr/local/bin
+  ansible.builtin.copy:
+    remote_src: yes
+    src: /tmp/node_exporter-{{ version }}.linux-amd64/node_exporter
+    dest: /usr/local/bin
+    mode: 0755
+
+- name:  Create user 
+  ansible.builtin.user:
+    name: "{{ user }}"
+    shell: /bin/false
+    create_home: false
+
+- name: create dir /etc/node_exporter
+  ansible.builtin.file: 
+    path: /etc/node_exporter
+    state: directory
+    owner: "{{ user }}"
+    group: root
+    mode: 0755
+
+- name: Copy template web.yml
+  ansible.builtin.template:
+    src: web.yml.j2
+    dest: /etc/node_exporter/web.yml
+    owner: "{{ user }}"
+    group: root
+    mode: 0640
+
+- name: Copy template service node_exporter.service
+  ansible.builtin.template:
+    src: node_exporter.service.j2 
+    dest: /lib/systemd/system/node_exporter.service
+    owner: root
+    group: root 
+    mode: 0644
+
+- name: Enable and start service node_exporter.service
+  ansible.builtin.systemd: 
+    name: node_exporter 
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+
+- name: delete files in /tmp
+  ansible.builtin.file: 
+    path: /tmp/{{ item }}
+    state: absent
+  with_items: 
+  - node_exporter-{{ version }}.linux-amd64.tar.gz
+  - node_exporter-{{ version }}.linux-amd64
+
+
